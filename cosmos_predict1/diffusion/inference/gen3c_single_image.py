@@ -218,7 +218,7 @@ def _predict_moge_depth_from_tensor(
 
     return moge_depth_11hw, moge_mask_11hw
 
-def load_models(checkpoint_dir, guidance):
+def load_models(checkpoint_dir, guidance, num_gpus):
     """
     Load the generation pipeline and the MoGe model outside of demo.
 
@@ -245,7 +245,17 @@ def load_models(checkpoint_dir, guidance):
         width=1280,
         fps=30,
         seed=42,
+        num_gpus=num_gpus
     )
+    
+    if args.num_gpus > 1:
+        from megatron.core import parallel_state
+
+        from cosmos_predict1.utils import distributed
+
+        distributed.init()
+        parallel_state.initialize_model_parallel(context_parallel_size=args.num_gpus)
+        process_group = parallel_state.get_context_parallel_group()
 
     pipeline = Gen3cPipeline(
         inference_type="video2world",
@@ -267,6 +277,10 @@ def load_models(checkpoint_dir, guidance):
         num_video_frames=121,
         seed=args.seed,
     )
+
+    if args.num_gpus > 1:
+        pipeline.model.net.enable_context_parallel(process_group)
+        
     moge_model = MoGeModel.from_pretrained("Ruicheng/moge-vitl").to(device)
 
     return pipeline, moge_model, device
