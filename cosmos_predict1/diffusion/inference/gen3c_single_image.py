@@ -286,39 +286,6 @@ def load_models(checkpoint_dir, guidance, num_gpus = 1):
     return pipeline, moge_model, device
 
 
-# def load_models(args):
-#     """
-#     Load the generation pipeline and the MoGe model outside of demo.
-
-#     Returns:
-#         pipeline (Gen3cPipeline): initialized generation pipeline
-#         moge_model (MoGeModel): loaded MoGe depth model on device
-#     """
-#     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-#     pipeline = Gen3cPipeline(
-#         inference_type="video2world",
-#         checkpoint_dir=args.checkpoint_dir,
-#         checkpoint_name="Gen3C-Cosmos-7B",
-#         prompt_upsampler_dir=args.prompt_upsampler_dir,
-#         enable_prompt_upsampler=not args.disable_prompt_upsampler,
-#         offload_network=args.offload_diffusion_transformer,
-#         offload_tokenizer=args.offload_tokenizer,
-#         offload_text_encoder_model=args.offload_text_encoder_model,
-#         offload_prompt_upsampler=args.offload_prompt_upsampler,
-#         offload_guardrail_models=args.offload_guardrail_models,
-#         disable_guardrail=args.disable_guardrail,
-#         guidance=args.guidance,
-#         num_steps=args.num_steps,
-#         height=args.height,
-#         width=args.width,
-#         fps=args.fps,
-#         num_video_frames=121,
-#         seed=args.seed,
-#     )
-#     moge_model = MoGeModel.from_pretrained("Ruicheng/moge-vitl").to(device)
-
-#     return pipeline, moge_model, device
-
 def process(args, pipeline, moge_model, device):
     """Run video-to-world generation demo.
 
