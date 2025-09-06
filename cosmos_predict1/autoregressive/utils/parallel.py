@@ -24,7 +24,16 @@ from torch.distributed import broadcast, get_process_group_ranks
 from transformer_engine.pytorch.jit import no_torch_dynamo
 from transformer_engine.pytorch.module.base import TransformerEngineBaseModule
 from transformer_engine.pytorch.module.rmsnorm import RMSNorm as RMSNormTE
-from transformer_engine.pytorch.module.rmsnorm import _RMSNorm
+
+try:
+    
+    from transformer_engine.pytorch.module.rmsnorm import _RMSNorm
+
+except Exception as e:
+    
+    from transformer_engine.pytorch.ops.basic.rmsnorm import RMSNorm as _RMSNorm
+
+    
 
 from cosmos_predict1.utils import log
 
