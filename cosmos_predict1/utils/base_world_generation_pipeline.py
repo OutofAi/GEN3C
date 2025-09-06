@@ -37,6 +37,7 @@ class BaseWorldGenerationPipeline(ABC):
         offload_text_encoder_model: bool = False,
         offload_guardrail_models: bool = False,
         disable_guardrail: bool = False,
+        text_encoder: CosmosT5TextEncoder = None,
     ):
         """Initialize base world generation pipeline.
 
@@ -73,13 +74,14 @@ class BaseWorldGenerationPipeline(ABC):
         # Initialize model instances
         self.text_guardrail = None
         self.video_guardrail = None
-        self.text_encoder = None
+        self.text_encoder = text_encoder
         self.model = None
 
         self._load_model()
 
-        if not self.offload_text_encoder_model:
+        if self.text_encoder == None and not self.offload_text_encoder_model:
             self._load_text_encoder_model()
+            
         if not self.disable_guardrail and not self.offload_guardrail_models:
             if self.has_text_input:
                 self._load_text_guardrail()

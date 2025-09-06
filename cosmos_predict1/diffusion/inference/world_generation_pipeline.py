@@ -106,6 +106,7 @@ class DiffusionText2WorldGenerationPipeline(BaseWorldGenerationPipeline):
         fps: int = 24,
         num_video_frames: int = 121,
         seed: int = 0,
+        text_encoder = None,
     ):
         """Initialize the diffusion world generation pipeline.
 
@@ -155,6 +156,7 @@ class DiffusionText2WorldGenerationPipeline(BaseWorldGenerationPipeline):
             offload_text_encoder_model=offload_text_encoder_model,
             offload_guardrail_models=offload_guardrail_models,
             disable_guardrail=disable_guardrail,
+            text_encoder = text_encoder,
         )
         self.prompt_upsampler_dir = prompt_upsampler_dir
         self.enable_prompt_upsampler = enable_prompt_upsampler
@@ -428,6 +430,7 @@ class DiffusionVideo2WorldGenerationPipeline(DiffusionText2WorldGenerationPipeli
         num_video_frames: int = 121,
         seed: int = 0,
         num_input_frames: int = 1,
+        text_encoder = None,
     ):
         """Initialize diffusion world generation pipeline.
 
@@ -474,6 +477,7 @@ class DiffusionVideo2WorldGenerationPipeline(DiffusionText2WorldGenerationPipeli
             fps=fps,
             num_video_frames=num_video_frames,
             seed=seed,
+            text_encoder = text_encoder,
         )
 
     def _run_prompt_upsampler_on_prompt(self, image_or_video_path: str) -> str:

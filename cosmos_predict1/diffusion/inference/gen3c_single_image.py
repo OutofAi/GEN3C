@@ -218,7 +218,7 @@ def _predict_moge_depth_from_tensor(
 
     return moge_depth_11hw, moge_mask_11hw
 
-def load_models(checkpoint_dir, guidance, num_gpus = 1):
+def load_models(checkpoint_dir, guidance, num_gpus = 1, text_encoder = None):
     """
     Load the generation pipeline and the MoGe model outside of demo.
 
@@ -276,6 +276,7 @@ def load_models(checkpoint_dir, guidance, num_gpus = 1):
         fps=args.fps,
         num_video_frames=121,
         seed=args.seed,
+        text_encoder = text_encoder,
     )
 
     if args.num_gpus > 1:

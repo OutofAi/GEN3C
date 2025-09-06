@@ -48,6 +48,7 @@ class Gen3cPipeline(DiffusionVideo2WorldGenerationPipeline):
         fps: int = 24,
         num_video_frames: int = 121,
         seed: int = 0,
+        text_encoder = None,
     ):
         """Initialize diffusion world generation pipeline.
 
@@ -93,6 +94,7 @@ class Gen3cPipeline(DiffusionVideo2WorldGenerationPipeline):
             num_video_frames=num_video_frames,
             seed=seed,
             num_input_frames=1,
+            text_encoder = text_encoder,
         )
 
     def _load_model(self):
