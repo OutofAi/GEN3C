@@ -172,7 +172,7 @@ class DiffusionModel(Model):
             # dynamic=False means that a separate kernel is created for each shape. It incurs higher compilation costs
             # at initial iterations, but can result in more specialized and efficient kernels.
             # dynamic=True currently throws errors in pytorch 2.3.
-            self.model.net = torch.compile(self.model.net, dynamic=False, disable=not self.config.use_torch_compile)
+            # self.model.net = torch.compile(self.model.net, dynamic=False, disable=not self.config.use_torch_compile)
 
     def compute_loss_with_epsilon_and_sigma(
         self,
