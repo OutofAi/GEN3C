@@ -28,77 +28,22 @@ class CosmosT5TextEncoder(torch.nn.Module):
     """Handles T5 text encoding operations."""
 
     def __init__(self, model_name: str = "google-t5/t5-11b", device: str = "cuda", cache_dir: str = "~/.cache"):
-        """Initializes the T5 tokenizer and encoder."""
+        """Initializes the T5 tokenizer and encoder.
+
+        Args:
+            model_name: The name of the T5 model to use.
+            device: The device to use for computations.
+        """
         super().__init__()
-
-        self.device = torch.device(device) if isinstance(device, str) else device
-
-        def looks_like_model_dir(p: str) -> bool:
-            pth = Path(p).expanduser()
-            return pth.is_dir() and (pth / "config.json").exists()
-
-        # If you passed an actual model folder, use it; otherwise load by repo id.
-        local_dir: Path | None = None
-        if looks_like_model_dir(cache_dir):
-            local_dir = Path(cache_dir).expanduser()
-        elif looks_like_model_dir(model_name):
-            local_dir = Path(model_name).expanduser()
-
         try:
-            if local_dir:
-                # --- Local load (preferred) ---
-                self.tokenizer = T5TokenizerFast.from_pretrained(str(local_dir), local_files_only=True)
-
-                bin_path = local_dir / "pytorch_model.bin"
-                safetensors_path = local_dir / "model.safetensors"
-
-                if bin_path.exists():
-                    # Preload on CPU to avoid map_location="meta" path that breaks with spaces/zero
-                    state_dict = torch.load(str(bin_path), map_location=torch.device("cpu"))
-                    self.text_encoder = T5EncoderModel.from_pretrained(
-                        str(local_dir),
-                        state_dict=state_dict,          # <- bypasses meta peek
-                        local_files_only=True,
-                        low_cpu_mem_usage=False,
-                        use_safetensors=False,
-                        trust_remote_code=False,
-                    )
-                else:
-                    # Safetensors path (no meta peek)
-                    extra = dict(local_files_only=True, low_cpu_mem_usage=False, trust_remote_code=False)
-                    try:
-                        self.text_encoder = T5EncoderModel.from_pretrained(str(local_dir), use_safetensors=True, **extra)
-                    except TypeError:
-                        self.text_encoder = T5EncoderModel.from_pretrained(str(local_dir), **extra)
-
-            else:
-                # --- Hub load (fallback) ---
-                hub_cache = str(Path(cache_dir).expanduser())
-                self.tokenizer = T5TokenizerFast.from_pretrained(model_name, cache_dir=hub_cache)
-                extra = dict(cache_dir=hub_cache, low_cpu_mem_usage=False, use_safetensors=False, trust_remote_code=False)
-                try:
-                    # Some transformers versions accept weights_only; if not, we fall back.
-                    self.text_encoder = T5EncoderModel.from_pretrained(model_name, weights_only=False, **extra)
-                except TypeError:
-                    self.text_encoder = T5EncoderModel.from_pretrained(model_name, **extra)
-
-            self.text_encoder = self.text_encoder.to(self.device).eval()
-
+            self.tokenizer = T5TokenizerFast.from_pretrained(cache_dir, cache_dir=cache_dir)
+            self.text_encoder = T5EncoderModel.from_pretrained(cache_dir, cache_dir=cache_dir).to(device)
         except Exception as e:
-            # Final safety fallback: try Hub again
-            log.warning(
-                f"Failed to load T5 from '{local_dir or model_name}' (cache_dir='{cache_dir}'): {e}. Falling back to Hub."
-            )
-            hub_cache = str(Path(cache_dir).expanduser())
-            self.tokenizer = T5TokenizerFast.from_pretrained(model_name, cache_dir=hub_cache)
-            extra = dict(cache_dir=hub_cache, low_cpu_mem_usage=False, use_safetensors=False, trust_remote_code=False)
-            try:
-                self.text_encoder = T5EncoderModel.from_pretrained(model_name, weights_only=False, **extra)
-            except TypeError:
-                self.text_encoder = T5EncoderModel.from_pretrained(model_name, **extra)
-            self.text_encoder = self.text_encoder.to(self.device).eval()
-
-        self.device = self.device
+            log.warning(f"Failed to load T5 model using cache_dir '{cache_dir}', falling back to default location: {e}")
+            self.tokenizer = T5TokenizerFast.from_pretrained(model_name)
+            self.text_encoder = T5EncoderModel.from_pretrained(model_name).to(device)
+        self.text_encoder.eval()
+        self.device = device
 
     @torch.inference_mode()
     def encode_prompts(
