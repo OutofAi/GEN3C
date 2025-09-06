@@ -22,7 +22,6 @@ from einops import rearrange
 from torch import nn
 from torch.utils.checkpoint import checkpoint
 from transformer_engine.pytorch.attention import DotProductAttention
-from transformer_engine.pytorch.attention import apply_rotary_pos_emb
 
 try:
     from transformer_engine.pytorch.attention import apply_rotary_pos_emb
