@@ -26,7 +26,7 @@ try:
 except Exception as e:
     from transformer_engine.pytorch.attention.rope import apply_rotary_pos_emb
     from transformer_engine.pytorch.attention.dot_product_attention.utils import check_set_window_size
-    from transformer_engine.pytorch.attention.dot_product_attention.utils import SplitAlongDim as _SplitAlongDim
+    from transformer_engine.pytorch.utils import SplitAlongDim as _SplitAlongDim
 
 
 from transformer_engine.pytorch.constants import AttnBiasTypes
