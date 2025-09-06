@@ -27,7 +27,7 @@ transformers.logging.set_verbosity_error()
 class CosmosT5TextEncoder(torch.nn.Module):
     """Handles T5 text encoding operations."""
 
-    def __init__(self, model_name: str = "google-t5/t5-11b", device: str = "cuda", cache_dir: str = "~/.cache"):
+    def __init__(self, model_name: str = "google-t5/t5-11b", device: str = "cuda", cache_dir: str = "~/.cache", ignore_pretrained = False):
         """Initializes the T5 tokenizer and encoder.
 
         Args:
@@ -35,13 +35,18 @@ class CosmosT5TextEncoder(torch.nn.Module):
             device: The device to use for computations.
         """
         super().__init__()
-        try:
-            self.tokenizer = T5TokenizerFast.from_pretrained(cache_dir, cache_dir=cache_dir)
-            self.text_encoder = T5EncoderModel.from_pretrained(cache_dir, cache_dir=cache_dir).to(device)
-        except Exception as e:
-            log.warning(f"Failed to load T5 model using cache_dir '{cache_dir}', falling back to default location: {e}")
-            self.tokenizer = T5TokenizerFast.from_pretrained(model_name)
-            self.text_encoder = T5EncoderModel.from_pretrained(model_name).to(device)
+
+        if not ignore_pretrained:
+            try:
+                self.tokenizer = T5TokenizerFast.from_pretrained(cache_dir, cache_dir=cache_dir)
+                self.text_encoder = T5EncoderModel.from_pretrained(cache_dir, cache_dir=cache_dir).to(device)
+            except Exception as e:
+                log.warning(f"Failed to load T5 model using cache_dir '{cache_dir}', falling back to default location: {e}")
+                self.tokenizer = T5TokenizerFast.from_pretrained(model_name)
+                self.text_encoder = T5EncoderModel.from_pretrained(model_name).to(device)
+        else:
+            self.tokenizer = None
+            self.text_encoder = None
         self.text_encoder.eval()
         self.device = device
 
