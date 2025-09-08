@@ -37,12 +37,12 @@ def _init_warp():
     
     if _ray_triangle_intersection_func is None:
         try:
-            from .ray_triangle_intersection_warp import ray_triangle_intersection_warp
-            _ray_triangle_intersection_func = ray_triangle_intersection_warp
+            from .ray_triangle_intersection_warp import ray_triangle_intersection_torch_blocked
+            _ray_triangle_intersection_func = ray_triangle_intersection_torch_blocked
             print(f"Warp: ray_triangle_intersection_warp kernel loaded (local_rank {os.getenv('LOCAL_RANK')})")
         except ImportError:
-            from ray_triangle_intersection_warp import ray_triangle_intersection_warp
-            _ray_triangle_intersection_func = ray_triangle_intersection_warp
+            from ray_triangle_intersection_warp import ray_triangle_intersection_torch_blocked
+            _ray_triangle_intersection_func = ray_triangle_intersection_torch_blocked
             print(f"Warp: ray_triangle_intersection_warp kernel loaded (local_rank {os.getenv('LOCAL_RANK')})")
 
 
