@@ -189,6 +189,9 @@ class Attention(nn.Module):
         backend: str = "transformer_engine",
         qkv_format: str = "bshd",
     ) -> None:
+        
+        backend = "torch"
+        
         super().__init__()
 
         self.is_selfattn = context_dim is None  # self attention
