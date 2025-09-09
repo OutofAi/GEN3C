@@ -252,57 +252,77 @@ class Attention(nn.Module):
         self.context_dim = context_dim
         self.inner_dim = inner_dim
 
-    def cal_qkv(
-        self, x, context=None, mask=None, rope_emb=None, **kwargs
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def cal_qkv(self, x, context=None, mask=None, rope_emb=None, **kwargs):
         del kwargs
-
-        """
-        self.to_q, self.to_k, self.to_v are nn.Sequential with projection + normalization layers.
-        Before 07/24/2024, these modules normalize across all heads.
-        After 07/24/2024, to support tensor parallelism and follow the common practice in the community,
-        we support to normalize per head.
-        To keep the checkpoint copatibility with the previous code,
-        we keep the nn.Sequential but call the projection and the normalization layers separately.
-        We use a flag `self.qkv_norm_mode` to control the normalization behavior.
-        The default value of `self.qkv_norm_mode` is "per_head", which means we normalize per head.
-        """
-        if self.qkv_norm_mode == "per_head":
-            q = self.to_q[0](x)
-            context = x if context is None else context
-            k = self.to_k[0](context)
-            v = self.to_v[0](context)
-            q, k, v = map(
-                lambda t: rearrange(t, "b ... (n c) -> b ... n c", n=self.heads, c=self.dim_head),
-                (q, k, v),
-            )
-        else:
+        if self.qkv_norm_mode != "per_head":
             raise ValueError(f"Normalization mode {self.qkv_norm_mode} not found, only support 'per_head'")
 
+        # Projections keep the leading dims as-is
+        q = self.to_q[0](x)
+        context = x if context is None else context
+        k = self.to_k[0](context)
+        v = self.to_v[0](context)
+
+        # Split heads, preserving input ordering (sb* or bs*)
+        if self.qkv_format.startswith("b"):       # expect [B, S, K] -> [B, S, H, D]
+            q = rearrange(q, "b s (n c) -> b s n c", n=self.heads, c=self.dim_head)
+            k = rearrange(k, "b s (n c) -> b s n c", n=self.heads, c=self.dim_head)
+            v = rearrange(v, "b s (n c) -> b s n c", n=self.heads, c=self.dim_head)
+        elif self.qkv_format.startswith("s"):     # expect [S, B, K] -> [S, B, H, D]
+            q = rearrange(q, "s b (n c) -> s b n c", n=self.heads, c=self.dim_head)
+            k = rearrange(k, "s b (n c) -> s b n c", n=self.heads, c=self.dim_head)
+            v = rearrange(v, "s b (n c) -> s b n c", n=self.heads, c=self.dim_head)
+        else:
+            raise ValueError(f"Unsupported qkv_format: {self.qkv_format}")
+
+        # Per-head norm
         q = self.to_q[1](q)
         k = self.to_k[1](k)
         v = self.to_v[1](v)
-        if self.is_selfattn and rope_emb is not None:  # only apply to self-attention!
+
+        # RoPE follows declared format
+        if self.is_selfattn and rope_emb is not None:
             q = apply_rotary_pos_emb(q, rope_emb, tensor_format=self.qkv_format, fused=True)
             k = apply_rotary_pos_emb(k, rope_emb, tensor_format=self.qkv_format, fused=True)
+
         return q, k, v
 
+
     def cal_attn(self, q, k, v, mask=None):
+        # For SDPA, convert to B H S D regardless of original ordering
+        seq_first = self.qkv_format.startswith("s")
         if self.backend == "transformer_engine":
-            seq_dim = self.qkv_format.index("s")
-            assert (
-                q.shape[seq_dim] > 1 and k.shape[seq_dim] > 1
-            ), "Seqlen must be larger than 1 for TE Attention starting with 1.8 TE version."
-            out = self.attn_op(q, k, v, core_attention_bias_type="no_bias", core_attention_bias=None)  # [B, Mq, H, V]
-            return self.to_out(out)
+            # TE returns the same ordering as inputs per qkv_format
+            out = self.attn_op(q, k, v, core_attention_bias_type="no_bias", core_attention_bias=None)
+            # Merge heads and keep original ordering for the linear
+            if seq_first:   # [S, B, H, D] -> [S, B, H*D]
+                x = rearrange(out, "s b h d -> s b (h d)")
+            else:           # [B, S, H, D] -> [B, S, H*D]
+                x = rearrange(out, "b s h d -> b s (h d)")
+            return self.to_out(x)
+
         elif self.backend == "torch":
-            q = rearrange(q, "b s h d -> b h s d")
-            k = rearrange(k, "b s h d -> b h s d")
-            v = rearrange(v, "b s h d -> b h s d")
-            out = self.attn_op(q, k, v)  # [B, Mq, H, V]
-            return self.to_out(rearrange(out, " b h s d -> b s (h d)"))
+            if seq_first:
+                q_bhsd = rearrange(q, "s b h d -> b h s d")
+                k_bhsd = rearrange(k, "s b h d -> b h s d")
+                v_bhsd = rearrange(v, "s b h d -> b h s d")
+            else:
+                q_bhsd = rearrange(q, "b s h d -> b h s d")
+                k_bhsd = rearrange(k, "b s h d -> b h s d")
+                v_bhsd = rearrange(v, "b s h d -> b h s d")
+
+            out_bhsd = self.attn_op(q_bhsd, k_bhsd, v_bhsd)  # shape: [B, H, S, D]
+
+            # Merge heads and restore original ordering before the output Linear
+            if seq_first:
+                x = rearrange(out_bhsd, "b h s d -> s b (h d)")
+            else:
+                x = rearrange(out_bhsd, "b h s d -> b s (h d)")
+            return self.to_out(x)
+
         else:
             raise ValueError(f"Backend {self.backend} not found")
+
 
     def forward(
         self,
