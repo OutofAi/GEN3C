@@ -296,11 +296,11 @@ class Attention(nn.Module):
             out = self.attn_op(q, k, v, core_attention_bias_type="no_bias", core_attention_bias=None)  # [B, Mq, H, V]
             return self.to_out(out)
         elif self.backend == "torch":
-            q = rearrange(q, "s b h d -> b h s d")
-            k = rearrange(k, "s b h d -> b h s d")
-            v = rearrange(v, "s b h d -> b h s d")
+            q = rearrange(q, "b s h d -> b h s d")
+            k = rearrange(k, "b s h d -> b h s d")
+            v = rearrange(v, "b s h d -> b h s d")
             out = self.attn_op(q, k, v)  # [B, Mq, H, V]
-            return self.to_out(rearrange(out, " b h s d -> s b (h d)"))
+            return self.to_out(rearrange(out, " b h s d -> b s (h d)"))
         else:
             raise ValueError(f"Backend {self.backend} not found")
 
