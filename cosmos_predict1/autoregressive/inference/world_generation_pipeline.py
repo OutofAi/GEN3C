@@ -59,6 +59,8 @@ def detect_model_size_from_ckpt_path(ckpt_path: str) -> str:
         >>> detect_model_size_from_ckpt_path("model_4B.pt")
         '4b'
     """
+    print(f"checking model size fo {ckpt_path}")
+    
     model_size = "4b"
     if "4B" in ckpt_path:
         model_size = "4b"
