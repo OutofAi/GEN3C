@@ -128,6 +128,7 @@ class DiffusionV2WModel(DiffusionT2WModel):
             xt = split_inputs_cp(x=xt, seq_dim=2, cp_group=self.net.cp_group)
 
         for t in self.scheduler.timesteps:
+            print(f'step: {t}')
             self.scheduler._init_step_index(t)
             sigma = self.scheduler.sigmas[self.scheduler.step_index].to(**self.tensor_kwargs)
             # Form new noise from latent
