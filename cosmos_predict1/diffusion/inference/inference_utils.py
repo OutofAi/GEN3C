@@ -323,10 +323,10 @@ def load_network_model(model: DiffusionT2WModel, ckpt_path: str):
     with skip_init_linear():
         model.set_up_model()
     try:
-        net_state_dict = torch.load(ckpt_path, map_location="cpu", weights_only=True)
+        net_state_dict = torch.load(ckpt_path, map_location="cuda", weights_only=True)
     except Exception:
         # Posttrained models can be loaded with weights_only=False
-        net_state_dict = torch.load(ckpt_path, map_location="cpu", weights_only=False)
+        net_state_dict = torch.load(ckpt_path, map_location="cuda", weights_only=False)
     if "model" in net_state_dict:
         model_state_dict = net_state_dict["model"]
         if "ema" in net_state_dict and model.config.peft_control and model.config.peft_control.enabled:
