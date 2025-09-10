@@ -18,6 +18,7 @@ from typing import Optional
 import torch
 from megatron.core import parallel_state
 from torch import Tensor
+import gc
 
 from cosmos_predict1.diffusion.conditioner import VideoExtendCondition
 from cosmos_predict1.diffusion.model.model_t2w import DiffusionT2WModel, broadcast_condition
@@ -129,6 +130,9 @@ class DiffusionV2WModel(DiffusionT2WModel):
 
         for t in self.scheduler.timesteps:
             print(f'step: {t}')
+            gc.collect()
+            torch.cuda.empty_cache()
+
             self.scheduler._init_step_index(t)
             sigma = self.scheduler.sigmas[self.scheduler.step_index].to(**self.tensor_kwargs)
             # Form new noise from latent
