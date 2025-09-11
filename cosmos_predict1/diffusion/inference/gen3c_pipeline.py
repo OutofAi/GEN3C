@@ -43,8 +43,8 @@ class Gen3cPipeline(DiffusionVideo2WorldGenerationPipeline):
         disable_guardrail: bool = False,
         guidance: float = 7.0,
         num_steps: int = 35,
-        height: int = 480,
-        width: int = 832,
+        height: int = 320,
+        width: int = 576,
         fps: int = 24,
         num_video_frames: int = 121,
         seed: int = 0,
@@ -103,6 +103,7 @@ class Gen3cPipeline(DiffusionVideo2WorldGenerationPipeline):
             config_file="cosmos_predict1/diffusion/config/config.py",
             model_class=DiffusionGen3CModel,
         )
+        self.model.state_shape=[16,16,40,72]
 
     def generate(
         self,
