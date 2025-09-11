@@ -240,6 +240,7 @@ class Gen3cPipeline(DiffusionVideo2WorldGenerationPipeline):
             fps=self.fps,
             num_video_frames=self.num_video_frames,
         )
+        print(f'state_shape:{state_shape}')
         data_batch["condition_state"] = rendered_warp_images
         data_batch["condition_state_mask"] = rendered_warp_masks
         # Generate video frames
