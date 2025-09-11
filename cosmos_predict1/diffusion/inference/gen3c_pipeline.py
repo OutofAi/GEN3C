@@ -44,8 +44,8 @@ class Gen3cPipeline(DiffusionVideo2WorldGenerationPipeline):
         disable_guardrail: bool = False,
         guidance: float = 7.0,
         num_steps: int = 35,
-        height: int = 704,
-        width: int = 1280,
+        height=576,
+        width=1024,
         fps: int = 24,
         num_video_frames: int = 121,
         seed: int = 0,
@@ -104,7 +104,9 @@ class Gen3cPipeline(DiffusionVideo2WorldGenerationPipeline):
             config_file="cosmos_predict1/diffusion/config/config.py",
             model_class=DiffusionGen3CModel,
         )
-
+        assert self.height % 8 == 0 and self.width % 8 == 0, "Height and width must be divisible by 8"
+        self.model.state_shape = [16, 16, self.height // 8, self.width // 8]
+        
     def generate(
         self,
         prompt: str,
