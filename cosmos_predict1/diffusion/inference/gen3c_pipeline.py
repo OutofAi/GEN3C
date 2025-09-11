@@ -44,8 +44,8 @@ class Gen3cPipeline(DiffusionVideo2WorldGenerationPipeline):
         disable_guardrail: bool = False,
         guidance: float = 7.0,
         num_steps: int = 35,
-        height=576,
-        width=1024,
+        height: int = 704,
+        width: int = 1280,
         fps: int = 24,
         num_video_frames: int = 121,
         seed: int = 0,
@@ -243,6 +243,9 @@ class Gen3cPipeline(DiffusionVideo2WorldGenerationPipeline):
             fps=self.fps,
             num_video_frames=self.num_video_frames,
         )
+        assert self.height % 8 == 0 and self.width % 8 == 0, "Height and width must be divisible by 8"
+        self.model.state_shape = [16, 16, self.height // 8, self.width // 8]
+        
         gc.collect()
         torch.cuda.empty_cache()
         print("video batch generated")
