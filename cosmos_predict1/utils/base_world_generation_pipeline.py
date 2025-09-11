@@ -22,7 +22,7 @@ import numpy as np
 import torch
 
 from cosmos_predict1.auxiliary.guardrail.common import presets as guardrail_presets
-from cosmos_predict1.auxiliary.t5_text_encoder import CosmosT5TextEncoder
+from cosmos_predict1.auxiliary.t5_text_encoder import CosmosT5TextEncoder, DummyT5TextEncoder
 
 
 class BaseWorldGenerationPipeline(ABC):
@@ -123,7 +123,7 @@ class BaseWorldGenerationPipeline(ABC):
         Returns:
             Loaded T5 text encoder model instance
         """
-        self.text_encoder = CosmosT5TextEncoder(cache_dir=os.path.join(self.checkpoint_dir, "google-t5/t5-11b"))
+        self.text_encoder = DummyT5TextEncoder(device="cuda")
 
     def _load_text_guardrail(self):
         """Load text safety classifier models.
