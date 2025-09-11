@@ -16,7 +16,6 @@
 from typing import Any, Optional
 
 import torch
-import gc
 
 from cosmos_predict1.diffusion.inference.inference_utils import (
     generate_world_from_video,
@@ -104,9 +103,7 @@ class Gen3cPipeline(DiffusionVideo2WorldGenerationPipeline):
             config_file="cosmos_predict1/diffusion/config/config.py",
             model_class=DiffusionGen3CModel,
         )
-        assert self.height % 8 == 0 and self.width % 8 == 0, "Height and width must be divisible by 8"
-        self.model.state_shape = [16, 16, self.height // 8, self.width // 8]
-        
+
     def generate(
         self,
         prompt: str,
@@ -243,12 +240,6 @@ class Gen3cPipeline(DiffusionVideo2WorldGenerationPipeline):
             fps=self.fps,
             num_video_frames=self.num_video_frames,
         )
-        assert self.height % 8 == 0 and self.width % 8 == 0, "Height and width must be divisible by 8"
-        self.model.state_shape = [16, 16, self.height // 8, self.width // 8]
-        
-        gc.collect()
-        torch.cuda.empty_cache()
-        print("video batch generated")
         data_batch["condition_state"] = rendered_warp_images
         data_batch["condition_state_mask"] = rendered_warp_masks
         # Generate video frames
