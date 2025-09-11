@@ -206,7 +206,7 @@ class Attention(nn.Module):
         else:
             raise ValueError(f"Normalization mode {self.qkv_norm_mode} not found, only support 'per_head'")
 
-        self.backend = "torch"
+        self.backend = backend
         self.tp_size = 1  # TP is not included in this Attention implementation.
 
         self.to_q = nn.Sequential(
