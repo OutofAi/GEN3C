@@ -529,6 +529,7 @@ def process(args, pipeline, moge_model, device):
 
         dist.destroy_process_group()
 
+@torch.no_grad()
 def run_full_demo(pipeline, 
                   moge_model, 
                   device,
