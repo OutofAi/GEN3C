@@ -19,7 +19,7 @@ import torch
 import torch.nn as nn
 import transformer_engine as te
 from cosmos_predict1.utils.megatron_compat import InferenceParams, ModelParallelConfig, parallel_state
-from megatron.core.tensor_parallel import gather_from_tensor_model_parallel_region
+from cosmos_predict1.utils.tensor_parallel_compat import gather_from_tensor_model_parallel_region
 from torch.distributed import ProcessGroup
 from torch.distributed import _functional_collectives as funcol
 from torch.distributed import broadcast, get_process_group_ranks

@@ -17,14 +17,15 @@ from typing import Callable
 
 import torch
 from cosmos_predict1.utils.megatron_compat import ModelParallelConfig, parallel_state
-from megatron.core.tensor_parallel import ColumnParallelLinear as McoreColumnParallelLinear
-from megatron.core.tensor_parallel import RowParallelLinear as McoreRowParallelLinear
-from megatron.core.tensor_parallel import VocabParallelEmbedding as McoreVocabParallelEmbedding
-from megatron.core.tensor_parallel.mappings import (
+from cosmos_predict1.utils.tensor_parallel_compat import (
+    ColumnParallelLinear as McoreColumnParallelLinear,
+    RowParallelLinear as McoreRowParallelLinear,
+    VocabParallelEmbedding as McoreVocabParallelEmbedding,
     reduce_from_tensor_model_parallel_region,
     reduce_scatter_to_sequence_parallel_region,
+    VocabUtility,
 )
-from megatron.core.tensor_parallel.utils import VocabUtility
+
 from torch.distributed import _functional_collectives as funcol
 from torch.distributed._functional_collectives import all_reduce
 

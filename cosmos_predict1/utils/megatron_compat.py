@@ -2,6 +2,7 @@
 from dataclasses import dataclass
 from typing import Any
 
+
 @dataclass
 class InferenceParams:
     max_batch_size: int
