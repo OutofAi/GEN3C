@@ -19,6 +19,7 @@ import torch
 from cosmos_predict1.utils.megatron_compat import parallel_state
 from torch import Tensor
 import gc
+from tqdm import tdqm
 
 from cosmos_predict1.diffusion.conditioner import VideoExtendCondition
 from cosmos_predict1.diffusion.model.model_t2w import DiffusionT2WModel, broadcast_condition
@@ -129,7 +130,7 @@ class DiffusionV2WModel(DiffusionT2WModel):
         if to_cp:
             xt = split_inputs_cp(x=xt, seq_dim=2, cp_group=self.net.cp_group)
 
-        for t in self.scheduler.timesteps:
+        for t in tqdm(self.scheduler.timesteps):
             gc.collect()
             torch.cuda.empty_cache()
 

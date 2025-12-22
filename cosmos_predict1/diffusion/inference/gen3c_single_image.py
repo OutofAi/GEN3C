@@ -226,7 +226,7 @@ def load_models(checkpoint_dir, guidance, num_gpus = 1, num_steps = 10, height =
         pipeline (Gen3cPipeline): initialized generation pipeline
         moge_model (MoGeModel): loaded MoGe depth model on device
     """
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda")
 
         # build args namespace
     args = argparse.Namespace(
@@ -629,7 +629,7 @@ def process_legacy(args):
     misc.set_random_seed(args.seed)
     inference_type = "video2world"
     validate_args(args)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda")
 
     if args.num_gpus > 1:
         from cosmos_predict1.utils.megatron_compat import parallel_state
