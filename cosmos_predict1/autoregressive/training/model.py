@@ -630,6 +630,7 @@ class AutoRegressiveTrainingModel(Model):
         assert bsz <= params.max_batch_size, (bsz, params.max_batch_size)
 
         if self.config.backend == "transformer_engine":
+            print("using transformer engine")
             self.inference_params = InferenceParams(
                 max_batch_size=params.max_batch_size, max_sequence_length=params.max_seq_len
             )
