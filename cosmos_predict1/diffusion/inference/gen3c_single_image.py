@@ -538,7 +538,11 @@ def run_full_demo(pipeline,
                   trajectory: str = "left",
                   movement_distance: float = 0.3,
                   camera_rotation: str = "center_facing",
-                  guidance: float = 1.0) -> str:
+                  guidance: float = 1.0,
+                  num_steps = 35,
+                  num_frames = 121,
+                  height = 704,
+                  width = 1280) -> str:
     """
     Run the video-to-world demo on a single uploaded image via Gradio.
     Returns the path to the saved video file.
@@ -575,10 +579,10 @@ def run_full_demo(pipeline,
         foreground_masking=True,
         # Diffusion & sampling parameters
         guidance=1.0,
-        num_steps=35,
-        num_video_frames=121,
-        height=704,
-        width=1280,
+        num_steps=num_steps,
+        num_video_frames=num_frames,
+        height=height,
+        width=width,
         fps=24,
         seed=1,
         num_gpus=1,
