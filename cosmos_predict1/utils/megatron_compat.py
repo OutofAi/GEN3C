@@ -16,6 +16,11 @@ class ModelParallelConfig:
     context_parallel_size: int = 1
 
 class _ParallelStateStub:
+
+    def is_initialized(self) -> bool:
+        # Megatron parallel groups are not set up in compat mode
+        return False
+    
     def get_tensor_model_parallel_rank(self) -> int: return 0
     def get_tensor_model_parallel_world_size(self) -> int: return 1
     def get_tensor_model_parallel_group(self) -> Any: return None
