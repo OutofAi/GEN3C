@@ -218,7 +218,7 @@ def _predict_moge_depth_from_tensor(
 
     return moge_depth_11hw, moge_mask_11hw
 
-def load_models(checkpoint_dir, guidance, num_gpus = 1, text_encoder = None):
+def load_models(checkpoint_dir, guidance, num_gpus = 1, num_steps = 10, height = 704, width=1280, text_encoder = None):
     """
     Load the generation pipeline and the MoGe model outside of demo.
 
@@ -240,9 +240,9 @@ def load_models(checkpoint_dir, guidance, num_gpus = 1, text_encoder = None):
         offload_text_encoder_model=True,
         offload_prompt_upsampler=False,
         offload_guardrail_models=False,
-        num_steps=25,
-        height=704,
-        width=1280,
+        num_steps=num_steps,
+        height=height,
+        width=width,
         fps=30,
         seed=42,
         num_gpus=num_gpus

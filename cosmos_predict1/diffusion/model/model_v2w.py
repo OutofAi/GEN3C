@@ -118,7 +118,6 @@ class DiffusionV2WModel(DiffusionT2WModel):
         condition, uncondition = self._get_conditions(
             data_batch, is_negative_prompt, condition_latent, num_condition_t, add_input_frames_guidance
         )
-        num_steps = 5
 
         self.scheduler.set_timesteps(num_steps)
         print(f'num_steps:{num_steps}')
