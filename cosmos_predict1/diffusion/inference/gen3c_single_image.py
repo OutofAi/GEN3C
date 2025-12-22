@@ -578,7 +578,7 @@ def run_full_demo(pipeline,
         filter_points_threshold=0.05,
         foreground_masking=True,
         # Diffusion & sampling parameters
-        guidance=1.0,
+        guidance=guidance,
         num_steps=num_steps,
         num_video_frames=num_frames,
         height=height,
