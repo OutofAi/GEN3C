@@ -15,7 +15,7 @@
 
 import torch
 import transformer_engine as te
-from megatron.core import parallel_state
+from cosmos_predict1.utils.megatron_compat import parallel_state
 from torch import nn
 
 from cosmos_predict1.utils import log

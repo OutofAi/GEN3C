@@ -94,7 +94,7 @@ def demo(args):
     validate_args(args, inference_type)
 
     if args.num_gpus > 1:
-        from megatron.core import parallel_state
+        from cosmos_predict1.utils.megatron_compat import parallel_state
 
         from cosmos_predict1.utils import distributed
 

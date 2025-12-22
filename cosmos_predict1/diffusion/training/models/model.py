@@ -20,7 +20,7 @@ import amp_C
 import torch
 from apex.multi_tensor_apply import multi_tensor_applier
 from einops import rearrange
-from megatron.core import parallel_state
+from cosmos_predict1.utils.megatron_compat import parallel_state
 from torch import Tensor
 from torch._utils import _flatten_dense_tensors, _unflatten_dense_tensors
 from torch.distributed import broadcast_object_list, get_process_group_ranks

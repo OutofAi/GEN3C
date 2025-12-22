@@ -17,7 +17,7 @@ import copy
 from typing import Callable, List, Optional
 
 import torch
-from megatron.core import ModelParallelConfig
+from cosmos_predict1.utils.megatron_compat import ModelParallelConfig
 
 from cosmos_predict1.autoregressive.configs.base.model import ModelConfig, TrainingModelConfig
 from cosmos_predict1.autoregressive.configs.base.tokenizer import (

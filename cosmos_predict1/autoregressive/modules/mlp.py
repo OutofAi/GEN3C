@@ -18,7 +18,7 @@ from typing import Optional
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from megatron.core import ModelParallelConfig, parallel_state
+from cosmos_predict1.utils.megatron_compat import ModelParallelConfig, parallel_state
 from torch.distributed import _functional_collectives as funcol
 from torch.distributed._functional_collectives import all_reduce
 

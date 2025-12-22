@@ -37,7 +37,7 @@ from typing import List, Optional, Tuple
 
 import torch
 from einops import rearrange
-from megatron.core import parallel_state
+from cosmos_predict1.utils.megatron_compat import parallel_state
 from torch import nn
 
 from cosmos_predict1.diffusion.module.timm import Mlp

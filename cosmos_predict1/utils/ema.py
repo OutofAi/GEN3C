@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any, Generator, List, Optional, Union
 
 import numpy as np
 import torch
-from megatron.core import parallel_state
+from cosmos_predict1.utils.megatron_compat import parallel_state
 
 from cosmos_predict1.utils import distributed, log
 

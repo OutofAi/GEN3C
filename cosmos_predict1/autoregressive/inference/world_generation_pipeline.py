@@ -21,7 +21,7 @@ import numpy as np
 import torch
 import torch.distributed as dist
 from einops import rearrange
-from megatron.core import ModelParallelConfig, parallel_state
+from cosmos_predict1.utils.megatron_compat import ModelParallelConfig, parallel_state
 from megatron.core.tensor_parallel.random import model_parallel_cuda_manual_seed
 
 from cosmos_predict1.autoregressive.configs.base.model_config import create_video2world_model_config

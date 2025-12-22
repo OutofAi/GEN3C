@@ -20,7 +20,7 @@ from typing import Callable, Dict, Optional, Tuple, Union
 import numpy as np
 import torch
 from einops import rearrange
-from megatron.core import parallel_state
+from cosmos_predict1.utils.megatron_compat import parallel_state
 from torch import Tensor
 
 from cosmos_predict1.diffusion.conditioner import VideoExtendCondition

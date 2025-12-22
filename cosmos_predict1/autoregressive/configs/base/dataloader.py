@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from megatron.core import parallel_state
+from cosmos_predict1.utils.megatron_compat import parallel_state
 from torch.utils.data import DataLoader, DistributedSampler
 
 from cosmos_predict1.autoregressive.configs.base.dataset import VideoDatasetConfig

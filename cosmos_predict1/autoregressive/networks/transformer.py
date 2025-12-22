@@ -17,7 +17,7 @@ from typing import Any, Dict, Optional
 
 import torch
 import torch.nn as nn
-from megatron.core import parallel_state
+from cosmos_predict1.utils.megatron_compat import parallel_state
 from torch.distributed import broadcast, get_process_group_ranks
 from torch.distributed._functional_collectives import all_gather_tensor
 from torch.nn.modules.module import _IncompatibleKeys

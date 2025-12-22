@@ -17,7 +17,7 @@ from typing import List
 
 import torch
 import torch.distributed as dist
-from megatron.core import mpu, parallel_state
+from cosmos_predict1.utils.megatron_compat import mpu, parallel_state
 from torch._utils import _flatten_dense_tensors, _unflatten_dense_tensors
 from torch.autograd import Function
 from torch.distributed import broadcast, get_process_group_ranks

@@ -83,7 +83,7 @@ class Gen3cPersistentModel():
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         if args.num_gpus > 1:
-            from megatron.core import parallel_state
+            from cosmos_predict1.utils.megatron_compat import parallel_state
 
             from cosmos_predict1.utils import distributed
 
@@ -558,7 +558,7 @@ class Gen3cPersistentModel():
             rank = get_rank()
             log.info(f"Model cleanup: destroying model parallel group on rank={rank}.",
                      rank0_only=False)
-            from megatron.core import parallel_state
+            from cosmos_predict1.utils.megatron_compat import parallel_state
             parallel_state.destroy_model_parallel()
 
             import torch.distributed as dist

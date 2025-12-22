@@ -18,7 +18,7 @@ import signal
 import torch
 import torch.distributed as dist
 import torch.utils.data
-from megatron.core import parallel_state
+from cosmos_predict1.utils.megatron_compat import parallel_state
 
 from cosmos_predict1.checkpointer.tp import Checkpointer as TensorParallelCheckpointer
 from cosmos_predict1.utils import distributed, ema, log, misc

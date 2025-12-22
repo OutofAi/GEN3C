@@ -27,7 +27,7 @@ from cosmos_predict1.diffusion.training.utils.peft.lora_net import LoRALinearLay
 from cosmos_predict1.diffusion.utils.customization.customization_manager import CustomizationType
 
 try:
-    from megatron.core import parallel_state
+    from cosmos_predict1.utils.megatron_compat import parallel_state
 
     USE_MEGATRON = True
 except ImportError:

@@ -249,7 +249,7 @@ def load_models(checkpoint_dir, guidance, num_gpus = 1, num_steps = 10, height =
     )
     
     if args.num_gpus > 1:
-        from megatron.core import parallel_state
+        from cosmos_predict1.utils.megatron_compat import parallel_state
 
         from cosmos_predict1.utils import distributed
 
@@ -316,7 +316,7 @@ def process(args, pipeline, moge_model, device):
     validate_args(args)
 
     if args.num_gpus > 1:
-        from megatron.core import parallel_state
+        from cosmos_predict1.utils.megatron_compat import parallel_state
 
         from cosmos_predict1.utils import distributed
 
@@ -632,7 +632,7 @@ def process_legacy(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     if args.num_gpus > 1:
-        from megatron.core import parallel_state
+        from cosmos_predict1.utils.megatron_compat import parallel_state
 
         from cosmos_predict1.utils import distributed
 

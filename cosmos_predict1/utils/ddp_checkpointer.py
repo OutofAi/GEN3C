@@ -20,7 +20,7 @@ from typing import Any, Dict, Optional, Set, Tuple, Union
 
 import torch
 import torch.distributed
-from megatron.core import parallel_state
+from cosmos_predict1.utils.megatron_compat import parallel_state
 from torch.distributed import ProcessGroup, get_process_group_ranks
 
 from cosmos_predict1.utils import distributed, log, misc

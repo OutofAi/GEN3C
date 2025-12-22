@@ -18,7 +18,7 @@ from typing import Dict, Optional, Tuple
 
 import torch
 from diffusers import EDMEulerScheduler
-from megatron.core import parallel_state
+from cosmos_predict1.utils.megatron_compat import parallel_state
 from torch import Tensor
 
 from cosmos_predict1.diffusion.conditioner import BaseVideoCondition

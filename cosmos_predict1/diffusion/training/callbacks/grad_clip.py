@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from typing import Tuple
 
 import torch
-from megatron.core import parallel_state
+from cosmos_predict1.utils.megatron_compat import parallel_state
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 
 from cosmos_predict1.utils import distributed

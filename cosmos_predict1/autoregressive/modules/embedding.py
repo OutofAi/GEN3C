@@ -19,7 +19,7 @@ from typing import List, Optional, Tuple
 import numpy as np
 import torch
 from einops import rearrange, repeat
-from megatron.core import parallel_state
+from cosmos_predict1.utils.megatron_compat import parallel_state
 
 
 def get_1d_sincos_pos_embed_from_grid(embed_dim, pos):

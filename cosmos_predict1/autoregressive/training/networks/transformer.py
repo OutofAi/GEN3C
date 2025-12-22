@@ -18,7 +18,7 @@ from typing import Any, Dict, Optional
 import torch
 import torch.nn as nn
 import transformer_engine as te
-from megatron.core import InferenceParams, ModelParallelConfig, parallel_state
+from cosmos_predict1.utils.megatron_compat import InferenceParams, ModelParallelConfig, parallel_state
 from megatron.core.tensor_parallel import gather_from_tensor_model_parallel_region
 from torch.distributed import ProcessGroup
 from torch.distributed import _functional_collectives as funcol

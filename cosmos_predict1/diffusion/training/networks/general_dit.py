@@ -37,7 +37,7 @@ from typing import List, Optional, Tuple
 
 import torch
 from einops import rearrange
-from megatron.core import parallel_state
+from cosmos_predict1.utils.megatron_compat import parallel_state
 from torch import nn
 from torch.distributed import ProcessGroup, get_process_group_ranks
 from torchvision import transforms

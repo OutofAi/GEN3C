@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
 import torch
-from megatron.core import ModelParallelConfig, parallel_state
+from cosmos_predict1.utils.megatron_compat import ModelParallelConfig, parallel_state
 from safetensors.torch import load_file
 from torch.nn.modules.module import _IncompatibleKeys
 

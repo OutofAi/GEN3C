@@ -22,7 +22,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 import torch
 import torch.nn.functional as F
-from megatron.core import InferenceParams, ModelParallelConfig, parallel_state
+from cosmos_predict1.utils.megatron_compat import InferenceParams, ModelParallelConfig, parallel_state
 from safetensors.torch import load_file
 from torch.distributed.fsdp import FullStateDictConfig
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP

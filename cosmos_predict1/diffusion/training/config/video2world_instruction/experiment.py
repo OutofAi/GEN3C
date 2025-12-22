@@ -16,7 +16,7 @@
 import os
 
 from hydra.core.config_store import ConfigStore
-from megatron.core import parallel_state
+from cosmos_predict1.utils.megatron_compat import parallel_state
 from torch.utils.data import DataLoader, DistributedSampler
 
 from cosmos_predict1.diffusion.training.callbacks.iter_speed import IterSpeed

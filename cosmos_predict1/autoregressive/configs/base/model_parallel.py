@@ -14,7 +14,7 @@
 # limitations under the License.
 
 import torch
-from megatron.core import ModelParallelConfig
+from cosmos_predict1.utils.megatron_compat import ModelParallelConfig
 
 from cosmos_predict1.utils.lazy_config import LazyDict
 

@@ -24,7 +24,7 @@ import torchvision
 import torchvision.transforms.functional as torchvision_F
 import wandb
 from einops import rearrange
-from megatron.core import parallel_state
+from cosmos_predict1.utils.megatron_compat import parallel_state
 from torch.distributed import get_process_group_ranks
 
 from cosmos_predict1.autoregressive.utils.parallel import (

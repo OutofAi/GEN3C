@@ -21,7 +21,7 @@ from typing import Any, Callable, Dict, Mapping, Optional, Tuple, Type, TypeVar
 import numpy as np
 import torch
 import torch.nn.functional as F
-from megatron.core import parallel_state
+from cosmos_predict1.utils.megatron_compat import parallel_state
 from torch.distributed.fsdp import FullStateDictConfig
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from torch.distributed.fsdp import ShardingStrategy, StateDictType

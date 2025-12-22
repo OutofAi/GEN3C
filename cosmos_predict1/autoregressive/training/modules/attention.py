@@ -17,7 +17,7 @@ import math
 from typing import Any, Optional, Tuple, Union
 
 import torch
-from megatron.core import ModelParallelConfig, parallel_state
+from cosmos_predict1.utils.megatron_compat import ModelParallelConfig, parallel_state
 from torch import nn
 from torch.distributed import _functional_collectives as funcol
 

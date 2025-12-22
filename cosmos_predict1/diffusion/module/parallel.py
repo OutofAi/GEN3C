@@ -14,7 +14,7 @@
 # limitations under the License.
 
 import torch
-from megatron.core import parallel_state
+from cosmos_predict1.utils.megatron_compat import parallel_state
 from torch import Tensor
 from torch.distributed import ProcessGroup, all_gather, broadcast_object_list, get_process_group_ranks, get_world_size
 from torch.distributed.utils import _verify_param_shape_across_processes

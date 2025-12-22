@@ -19,7 +19,7 @@ from typing import Optional
 import torch
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
-from megatron.core import parallel_state
+from cosmos_predict1.utils.megatron_compat import parallel_state
 from torch import nn
 from transformer_engine.pytorch.attention import apply_rotary_pos_emb
 
