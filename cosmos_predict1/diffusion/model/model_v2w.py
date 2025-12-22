@@ -118,8 +118,10 @@ class DiffusionV2WModel(DiffusionT2WModel):
         condition, uncondition = self._get_conditions(
             data_batch, is_negative_prompt, condition_latent, num_condition_t, add_input_frames_guidance
         )
+        num_steps = 10
 
         self.scheduler.set_timesteps(num_steps)
+        print(f'num_steps:{num_steps}')
         if n_sample is None:
             n_sample = condition_latent.shape[0]
         xt = torch.randn(size=(n_sample,) + tuple(state_shape), **self.tensor_kwargs) * self.scheduler.init_noise_sigma
@@ -129,7 +131,6 @@ class DiffusionV2WModel(DiffusionT2WModel):
             xt = split_inputs_cp(x=xt, seq_dim=2, cp_group=self.net.cp_group)
 
         for t in self.scheduler.timesteps:
-            print(f'step: {t}')
             gc.collect()
             torch.cuda.empty_cache()
 
