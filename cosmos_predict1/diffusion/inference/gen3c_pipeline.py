@@ -98,12 +98,14 @@ class Gen3cPipeline(DiffusionVideo2WorldGenerationPipeline):
         )
 
     def _load_model(self):
-        print("loading DiffusionGen3CModel")
+        print(f"before:{self.model}")
+        print("loading DiffusionGen3CModel") 
         self.model = load_model_by_config(
             config_job_name=self.model_name,
             config_file="cosmos_predict1/diffusion/config/config.py",
             model_class=DiffusionGen3CModel,
         )
+        print(f"after:{self.model}")
 
     def generate(
         self,
