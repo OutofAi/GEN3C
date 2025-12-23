@@ -31,8 +31,39 @@ from cosmos_predict1.utils import log, misc
 from cosmos_predict1.utils.io import read_prompts_from_file, save_video
 from cosmos_predict1.diffusion.inference.cache_3d import Cache3D_Buffer
 from cosmos_predict1.diffusion.inference.camera_utils import generate_camera_trajectory
+import torch.nn as nn
 import torch.nn.functional as F
+from contextlib import contextmanager
 torch.enable_grad(False)
+
+
+import contextlib
+import transformer_engine.pytorch as te
+
+# FP8 autocast compatibility for different TE versions
+try:
+    # Preferred modern API
+    from transformer_engine.pytorch import fp8_autocast
+    try:
+        # Newer TE: use recipe-based API
+        from transformer_engine.common.recipe import DelayedScaling, Format
+        def make_fp8_ctx(enabled: bool = True):
+            if not enabled:
+                return contextlib.nullcontext()
+            fp8_recipe = DelayedScaling(fp8_format=Format.E4M3)  # E4M3 format
+            return fp8_autocast(enabled=True, fp8_recipe=fp8_recipe)
+    except Exception:
+        # Very old variant that might still accept fp8_format directly
+        def make_fp8_ctx(enabled: bool = True):
+            # If TE doesn't have FP8Format, just no-op
+            if not hasattr(te, "FP8Format"):
+                return contextlib.nullcontext()
+            return te.fp8_autocast(enabled=enabled, fp8_format=te.FP8Format.E4M3)
+except Exception:
+    # TE not present or totally incompatible — no-op
+    def make_fp8_ctx(enabled: bool = True):
+        return contextlib.nullcontext()
+
 
 def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Video to world generation demo script")
@@ -468,14 +499,20 @@ def process(args, pipeline, moge_model, device):
         if args.save_buffer:
             all_rendered_warps.append(rendered_warp_images.clone().cpu())
 
-        # Generate video
-        generated_output = pipeline.generate(
-            prompt=current_prompt,
-            image_path=current_image_path,
-            negative_prompt=args.negative_prompt,
-            rendered_warp_images=rendered_warp_images,
-            rendered_warp_masks=rendered_warp_masks,
-        )
+        @contextmanager
+        def noop_no_sync():
+            yield
+                
+        no_sync = getattr(pipeline.model, 'no_sync', noop_no_sync)
+
+        with make_fp8_ctx(True), torch.autocast('cuda', dtype=torch.bfloat16), torch.no_grad(), no_sync():
+            generated_output = pipeline.generate(
+                prompt=current_prompt,
+                image_path=current_image_path,
+                negative_prompt=args.negative_prompt,
+                rendered_warp_images=rendered_warp_images,
+                rendered_warp_masks=rendered_warp_masks,
+            )
         if generated_output is None:
             log.critical("Guardrail blocked video2world generation.")
             continue
@@ -655,7 +692,7 @@ def run_full_demo(pipeline,
         offload_guardrail_models=False,
     )
 
-    # load models and run
+
     process(args, pipeline, moge_model, device)
 
     # return the saved path

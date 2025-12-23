@@ -325,7 +325,6 @@ def load_network_model(model: DiffusionT2WModel, ckpt_path: str):
     try:
         net_state_dict = torch.load(ckpt_path, map_location="cpu", weights_only=True)
     except Exception:
-        print("failed weight only")
         # Posttrained models can be loaded with weights_only=False
         net_state_dict = torch.load(ckpt_path, map_location="cpu", weights_only=False)
     if "model" in net_state_dict:
