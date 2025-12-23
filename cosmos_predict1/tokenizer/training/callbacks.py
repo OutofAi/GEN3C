@@ -226,14 +226,7 @@ class TorchCompile(callback.Callback):
                     )
 
         if iteration - self.initial_iteration == self.compile_after_iterations:
-            if self.compile_network:
-                if model.config.ema.enabled is True and model.config.ema.torch_compile_buffer_renaming is False:
-                    log.warning(
-                        '"model.config.ema.torch_compile_buffer_renaming" should be turned on for the EMA to work with torch.compile(), skipping network compilation'
-                    )
-                else:
-                    log.info("Compiling network")
-                    model.network = torch.compile(model.network, dynamic=False)
+            model.network = torch.compile(model.network, dynamic=False)
 
             if self.compile_loss:
                 for key in self.compile_loss_keys:

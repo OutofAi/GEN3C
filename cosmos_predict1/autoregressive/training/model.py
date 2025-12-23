@@ -840,16 +840,12 @@ class AutoRegressiveTrainingModel(Model):
         self.model.set_inference_flag(True)
         misc.set_random_seed(seed)
 
-        assert not logprobs, "logprobs are not supported for fast_generate yet"
-        # Examine if the function prefil and decode_one_token functions are compiled yet. If not, compile them based on the flags
-        # if compile_decode and not getattr(self, "inference_decode_compiled", False):
-        #     self.decode_one_token = torch.compile(decode_one_token, mode="reduce-overhead", fullgraph=True)
-        #     self.inference_decode_compiled = True
-        #     log.critical("Compiled decode_one_token function. Note: the first run will be slower due to compilation")
-        # if compile_prefill and not getattr(self, "inference_prefill_compiled", False):
-        #     self.prefill = torch.compile(prefill, fullgraph=True, dynamic=True)
-        #     self.inference_prefill_compiled = True
-        #     log.critical("Compiled prefill function. Note: the first run will be slower due to compilation")
+
+        self.decode_one_token = torch.compile(decode_one_token, mode="reduce-overhead", fullgraph=True)
+        self.inference_decode_compiled = True
+        self.prefill = torch.compile(prefill, fullgraph=True, dynamic=True)
+        self.inference_prefill_compiled = True
+
 
         if not hasattr(self, "decode_one_token"):
             self.decode_one_token = decode_one_token

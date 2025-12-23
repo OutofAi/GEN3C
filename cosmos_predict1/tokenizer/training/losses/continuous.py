@@ -386,8 +386,8 @@ class FlowLoss(torch.nn.Module):
         """
         This method invokes torch.compile() on this loss
         """
-        # self.flow_model = torch.compile(self.flow_model, dynamic=False)
-        self.flow_model = self.flow_model
+        self.flow_model = torch.compile(self.flow_model, dynamic=False)
+        # self.flow_model = self.flow_model
 
 
 class VideoConsistencyLoss(torch.nn.Module):
