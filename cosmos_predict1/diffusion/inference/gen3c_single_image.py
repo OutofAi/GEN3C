@@ -474,9 +474,7 @@ def process(args, pipeline, moge_model, device):
         if args.save_buffer:
             all_rendered_warps.append(rendered_warp_images.clone().cpu())
 
-        fp8_recipe = DelayedScaling(fp8_format=Format.HYBRID, amax_history_len=16)
-
-        with te.fp8_autocast(enabled=True, fp8_recipe=fp8_recipe), torch.no_grad():
+        with torch.no_grad():
             generated_output = pipeline.generate(
                 prompt=current_prompt,
                 image_path=current_image_path,
