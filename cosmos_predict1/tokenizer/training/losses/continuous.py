@@ -212,8 +212,8 @@ class PerceptualLoss(LPIPS):
         This method invokes torch.compile() on this loss
         """
         # cuda-graphs crash after 1k iterations
-        # self.net = torch.compile(self.net, dynamic=False)
-        self.net = self.net
+        self.net = torch.compile(self.net, dynamic=False)
+        
 
 
 class FlowLoss(torch.nn.Module):
