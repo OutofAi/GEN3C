@@ -172,6 +172,7 @@ class DiffusionText2WorldGenerationPipeline(BaseWorldGenerationPipeline):
         )
 
     def _load_model(self):
+        print("loading DiffusionT2WModel")
         self.model = load_model_by_config(
             config_job_name=self.model_name,
             config_file="cosmos_predict1/diffusion/config/config.py",
