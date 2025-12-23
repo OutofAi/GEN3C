@@ -37,33 +37,8 @@ from contextlib import contextmanager
 torch.enable_grad(False)
 
 
-import contextlib
 import transformer_engine.pytorch as te
-
-# FP8 autocast compatibility for different TE versions
-try:
-    # Preferred modern API
-    from transformer_engine.pytorch import fp8_autocast
-    try:
-        # Newer TE: use recipe-based API
-        from transformer_engine.common.recipe import DelayedScaling, Format
-        def make_fp8_ctx(enabled: bool = True):
-            if not enabled:
-                return contextlib.nullcontext()
-            fp8_recipe = DelayedScaling(fp8_format=Format.E4M3)  # E4M3 format
-            return fp8_autocast(enabled=True, fp8_recipe=fp8_recipe)
-    except Exception:
-        # Very old variant that might still accept fp8_format directly
-        def make_fp8_ctx(enabled: bool = True):
-            # If TE doesn't have FP8Format, just no-op
-            if not hasattr(te, "FP8Format"):
-                return contextlib.nullcontext()
-            return te.fp8_autocast(enabled=enabled, fp8_format=te.FP8Format.E4M3)
-except Exception:
-    # TE not present or totally incompatible — no-op
-    def make_fp8_ctx(enabled: bool = True):
-        return contextlib.nullcontext()
-
+from transformer_engine.common.recipe import Format, DelayedScaling
 
 def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Video to world generation demo script")
@@ -499,13 +474,9 @@ def process(args, pipeline, moge_model, device):
         if args.save_buffer:
             all_rendered_warps.append(rendered_warp_images.clone().cpu())
 
-        @contextmanager
-        def noop_no_sync():
-            yield
-                
-        no_sync = getattr(pipeline.model, 'no_sync', noop_no_sync)
+        fp8_recipe = DelayedScaling(fp8_format=Format.HYBRID, amax_history_len=16)
 
-        with make_fp8_ctx(True), torch.autocast('cuda', dtype=torch.bfloat16), torch.no_grad(), no_sync():
+        with te.fp8_autocast(enabled=True, fp8_recipe=fp8_recipe), torch.no_grad():
             generated_output = pipeline.generate(
                 prompt=current_prompt,
                 image_path=current_image_path,
