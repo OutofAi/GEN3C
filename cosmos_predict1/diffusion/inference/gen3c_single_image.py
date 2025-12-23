@@ -218,6 +218,66 @@ def _predict_moge_depth_from_tensor(
 
     return moge_depth_11hw, moge_mask_11hw
 
+
+def load_main_models(checkpoint_dir, guidance, num_gpus = 1, num_steps = 10, height = 704, width=1280):
+    """
+    Load the generation pipeline and the MoGe model outside of demo.
+
+    Returns:
+        pipeline (Gen3cPipeline): initialized generation pipeline
+        moge_model (MoGeModel): loaded MoGe depth model on device
+    """
+    device = torch.device("cuda")
+
+        # build args namespace
+    args = argparse.Namespace(
+        checkpoint_dir=checkpoint_dir,
+        prompt_upsampler_dir="Pixtral-12B",
+        guidance=guidance,
+        disable_prompt_upsampler=True,
+        disable_guardrail=True,
+        offload_diffusion_transformer=False,
+        offload_tokenizer=False,
+        offload_text_encoder_model=False,
+        offload_prompt_upsampler=False,
+        offload_guardrail_models=False,
+        num_steps=num_steps,
+        height=height,
+        width=width,
+        fps=30,
+        seed=42,
+        num_gpus=num_gpus
+    )
+
+    pipeline = Gen3cPipeline(
+        inference_type="video2world",
+        checkpoint_dir=args.checkpoint_dir,
+        checkpoint_name="Gen3C-Cosmos-7B",
+        prompt_upsampler_dir=args.prompt_upsampler_dir,
+        enable_prompt_upsampler=not args.disable_prompt_upsampler,
+        offload_network=args.offload_diffusion_transformer,
+        offload_tokenizer=args.offload_tokenizer,
+        offload_text_encoder_model=args.offload_text_encoder_model,
+        offload_prompt_upsampler=args.offload_prompt_upsampler,
+        offload_guardrail_models=args.offload_guardrail_models,
+        disable_guardrail=args.disable_guardrail,
+        guidance=args.guidance,
+        num_steps=args.num_steps,
+        height=args.height,
+        width=args.width,
+        fps=args.fps,
+        num_video_frames=121,
+        seed=args.seed,
+    )
+    return pipeline, device
+
+def load_depth_model():
+    device = torch.device("cuda")
+
+    moge_model = MoGeModel.from_pretrained("Ruicheng/moge-vitl").to(device)
+
+    return moge_model
+
 def load_models(checkpoint_dir, guidance, num_gpus = 1, num_steps = 10, height = 704, width=1280, text_encoder = None):
     """
     Load the generation pipeline and the MoGe model outside of demo.
@@ -237,7 +297,7 @@ def load_models(checkpoint_dir, guidance, num_gpus = 1, num_steps = 10, height =
         disable_guardrail=True,
         offload_diffusion_transformer=False,
         offload_tokenizer=False,
-        offload_text_encoder_model=True,
+        offload_text_encoder_model=False,
         offload_prompt_upsampler=False,
         offload_guardrail_models=False,
         num_steps=num_steps,
@@ -282,7 +342,7 @@ def load_models(checkpoint_dir, guidance, num_gpus = 1, num_steps = 10, height =
     if args.num_gpus > 1:
         pipeline.model.net.enable_context_parallel(process_group)
         
-    moge_model = MoGeModel.from_pretrained("Ruicheng/moge-vitl").to(device)
+    moge_model = load_depth_model()
 
     return pipeline, moge_model, device
 
