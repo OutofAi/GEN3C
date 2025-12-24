@@ -24,6 +24,33 @@ from torch.distributed._functional_collectives import all_reduce
 from cosmos_predict1.autoregressive.modules.embedding import RotaryPositionEmbedding
 from cosmos_predict1.autoregressive.modules.normalization import create_norm
 
+def _try_get_fa3():
+    # Different installs expose different import paths; try a couple.
+    try:
+        import flash_attn_interface as fa3  # what you’re already trying
+        return fa3
+    except ModuleNotFoundError:
+        pass
+    try:
+        # In Dao-AILab/flash-attention repo, FA3 lives under hopper/
+        from flash_attn.hopper import flash_attn_interface as fa3
+        return fa3
+    except Exception:
+        return None
+
+_FA3 = _try_get_fa3()
+
+def _fa3_ok(q, k, v, mask):
+    if _FA3 is None:
+        return False
+    if mask is not None:
+        return False  # FA3 generally can’t consume arbitrary attn_mask; fall back
+    if not (q.is_cuda and k.is_cuda and v.is_cuda):
+        return False
+    if q.dtype not in (torch.float16, torch.bfloat16):
+        return False
+    return True
+
 
 class Attention(nn.Module):
     """
@@ -186,14 +213,14 @@ class Attention(nn.Module):
         # xk: (bs, n_kv_heads, cache_len + context_len, head_dim)
         # xv: (bs, n_kv_heads, cache_len + context_len, head_dim)
         if self.attn_type == "self":
-            # Update cache with current key and value tensors
             assert input_pos is not None
             self.cache_k[:bsz, :, input_pos] = xk
             self.cache_v[:bsz, :, input_pos] = xv
-            keys, values = (
-                self.cache_k[:bsz, :, :],
-                self.cache_v[:bsz, :, :],
-            )
+
+            # current KV length = (last written position + 1)
+            kv_len = int(input_pos.max().item()) + 1  # works if input_pos is positions tensor
+            keys   = self.cache_k[:bsz, :, :kv_len]
+            values = self.cache_v[:bsz, :, :kv_len]
         else:
             keys, values = xk, xv
 
@@ -230,40 +257,33 @@ def scaled_dot_product_attention(
     is_causal: Optional[bool] = None,
     dropout_p: float = 0.0,
 ) -> torch.Tensor:
-    """
-    PyTorch's native implementation of Flash Attention 2.
-
-    If `is_causal` is given, then the causal attention mask is applied accordingly:
-    - If `is_causal` is True, the standard upper-left causal attention masking is applied.
-    - If `is_causal` is False, no attention mask is applied, unless an explicit mask tensor is
-      provided (i.e., `mask is not None`).
-
-    If `is_causal` is not given (i.e., `is_causal is None`), then the attention mask is applied
-    based on the provided mask tensor:
-    - If no explicit attention mask is given (i.e., `mask is None`), `is_causal` is set to True,
-    leading to the standard upper-left causal attention masking.
-    - If an attention mask is given (i.e., `mask is not None`), the provided mask is used,
-    and `is_causal` is set to False.
-
-    Args:
-        q (torch.Tensor): Query tensor
-        k (torch.Tensor): Key tensor
-        v (torch.Tensor): Value tensor
-        head_dim (int): Dimension of each attention head
-        mask (Optional[torch.Tensor], optional): Attention mask. Defaults to None.
-        is_causal (Optional[bool], optional): Whether to apply causal attention mask. Defaults to None.
-        dropout_p (float, optional): Dropout rate. Defaults to 0.0.
-
-    Returns:
-        torch.Tensor: Output tensor after applying scaled dot-product attention
-    """
     scale = 1.0 / math.sqrt(head_dim)
+
     if is_causal is None:
-        is_causal = mask is None
+        is_causal = (mask is None)
+
+    # ---- FA3 path (no arbitrary mask) ----
+    if _fa3_ok(q, k, v, mask):
+        # (bs, heads, seqlen, d) -> (bs, seqlen, heads, d)
+        q_ = q.transpose(1, 2).contiguous()
+        k_ = k.transpose(1, 2).contiguous()
+        v_ = v.transpose(1, 2).contiguous()
+
+        # flash_attn_func signature includes softmax_scale and causal. :contentReference[oaicite:2]{index=2}
+        out = _FA3.flash_attn_func(
+            q_, k_, v_,
+            dropout_p=0.0,              # for inference; set if you really need dropout
+            softmax_scale=scale,
+            causal=bool(is_causal),
+        )
+
+        # back to your expected return format: (bs, seqlen, heads, d) -> (bs, heads, seqlen, d)
+        out = out.transpose(1, 2).contiguous()
+        return out.transpose(1, 2).contiguous()  # matches your existing function’s return (bs, seqlen, heads, d)
+
+    # ---- fallback: PyTorch SDPA (FlashAttention-2 backend when available) ----
     y = torch.nn.functional.scaled_dot_product_attention(
-        q,
-        k,
-        v,
+        q, k, v,
         attn_mask=mask,
         dropout_p=dropout_p,
         scale=scale,
