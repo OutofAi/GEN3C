@@ -191,8 +191,6 @@ class Attention(nn.Module):
     ) -> None:
         super().__init__()
 
-        print("attention 2")
-
         self.is_selfattn = context_dim is None  # self attention
 
         inner_dim = dim_head * heads
@@ -232,6 +230,7 @@ class Attention(nn.Module):
         if attn_op:  # use what is given
             self.attn_op = attn_op
         elif self.backend == "transformer_engine":
+            print("transformer_engine")
             self.attn_op: BaseAttentionOp = DotProductAttention(
                 self.heads,
                 self.dim_head,
@@ -244,6 +243,7 @@ class Attention(nn.Module):
                 sequence_parallel=False,
             )
         elif self.backend == "torch":
+            print("torch")
             self.attn_op = torch.nn.functional.scaled_dot_product_attention
         else:
             raise ValueError(f"Backend {backend} not found")
