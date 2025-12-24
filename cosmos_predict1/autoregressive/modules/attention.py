@@ -262,8 +262,12 @@ def scaled_dot_product_attention(
     if is_causal is None:
         is_causal = (mask is None)
 
+    print("attention")
+
     # ---- FA3 path (no arbitrary mask) ----
     if _fa3_ok(q, k, v, mask):
+
+        print("flash attention")
         # (bs, heads, seqlen, d) -> (bs, seqlen, heads, d)
         q_ = q.transpose(1, 2).contiguous()
         k_ = k.transpose(1, 2).contiguous()

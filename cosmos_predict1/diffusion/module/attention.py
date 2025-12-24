@@ -191,6 +191,8 @@ class Attention(nn.Module):
     ) -> None:
         super().__init__()
 
+        print("attention 2")
+
         self.is_selfattn = context_dim is None  # self attention
 
         inner_dim = dim_head * heads
