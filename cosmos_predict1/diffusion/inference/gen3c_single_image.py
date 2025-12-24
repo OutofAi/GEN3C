@@ -36,6 +36,15 @@ import torch.nn.functional as F
 from contextlib import contextmanager
 torch.enable_grad(False)
 
+import time
+from contextlib import contextmanager
+
+@contextmanager
+def timer(name: str):
+    start = time.time()
+    print(f"{name}...")
+    yield
+    print(f"  -> {name} completed in {time.time() - start:.2f} sec")
 
 import transformer_engine.pytorch as te
 from transformer_engine.common.recipe import Format, DelayedScaling
@@ -280,7 +289,7 @@ def load_main_models(checkpoint_dir, guidance, num_gpus = 1, num_steps = 10, hei
 def load_depth_model():
     device = torch.device("cuda")
 
-    moge_model = MoGeModel.from_pretrained("Ruicheng/moge-vitl").to(device)
+    moge_model = MoGeModel.from_pretrained("Ruicheng/moge-vitl").eval().to(device)
 
     return moge_model
 
@@ -422,53 +431,58 @@ def process(args, pipeline, moge_model, device):
             continue
 
         # load image, predict depth and initialize 3D cache
-        (
-            moge_image_b1chw_float,
-            moge_depth_b11hw,
-            moge_mask_b11hw,
-            moge_initial_w2c_b144,
-            moge_intrinsics_b133,
-        ) = _predict_moge_depth(
-            current_image_path, args.height, args.width, device, moge_model
-        )
+        with timer("predict depth"): 
+            (
+                moge_image_b1chw_float,
+                moge_depth_b11hw,
+                moge_mask_b11hw,
+                moge_initial_w2c_b144,
+                moge_intrinsics_b133,
+            ) = _predict_moge_depth(
+                current_image_path, args.height, args.width, device, moge_model
+            )
 
-        cache = Cache3D_Buffer(
-            frame_buffer_max=frame_buffer_max,
-            generator=generator,
-            noise_aug_strength=args.noise_aug_strength,
-            input_image=moge_image_b1chw_float[:, 0].clone(), # [B, C, H, W]
-            input_depth=moge_depth_b11hw[:, 0],       # [B, 1, H, W]
-            # input_mask=moge_mask_b11hw[:, 0],         # [B, 1, H, W]
-            input_w2c=moge_initial_w2c_b144[:, 0],  # [B, 4, 4]
-            input_intrinsics=moge_intrinsics_b133[:, 0],# [B, 3, 3]
-            filter_points_threshold=args.filter_points_threshold,
-            foreground_masking=args.foreground_masking,
-        )
+        with timer("Cache3D_Buffer"):    
+            cache = Cache3D_Buffer(
+                frame_buffer_max=frame_buffer_max,
+                generator=generator,
+                noise_aug_strength=args.noise_aug_strength,
+                input_image=moge_image_b1chw_float[:, 0].clone(), # [B, C, H, W]
+                input_depth=moge_depth_b11hw[:, 0],       # [B, 1, H, W]
+                # input_mask=moge_mask_b11hw[:, 0],         # [B, 1, H, W]
+                input_w2c=moge_initial_w2c_b144[:, 0],  # [B, 4, 4]
+                input_intrinsics=moge_intrinsics_b133[:, 0],# [B, 3, 3]
+                filter_points_threshold=args.filter_points_threshold,
+                foreground_masking=args.foreground_masking,
+            )
 
         initial_cam_w2c_for_traj = moge_initial_w2c_b144[0, 0]
         initial_cam_intrinsics_for_traj = moge_intrinsics_b133[0, 0]
 
         # Generate camera trajectory using the new utility function
-        try:
-            generated_w2cs, generated_intrinsics = generate_camera_trajectory(
-                trajectory_type=args.trajectory,
-                initial_w2c=initial_cam_w2c_for_traj,
-                initial_intrinsics=initial_cam_intrinsics_for_traj,
-                num_frames=args.num_video_frames,
-                movement_distance=args.movement_distance,
-                camera_rotation=args.camera_rotation,
-                center_depth=1.0,
-                device=device.type,
-            )
+        try:     
+            with timer("camera trajectory"):       
+                generated_w2cs, generated_intrinsics = generate_camera_trajectory(
+                    trajectory_type=args.trajectory,
+                    initial_w2c=initial_cam_w2c_for_traj,
+                    initial_intrinsics=initial_cam_intrinsics_for_traj,
+                    num_frames=args.num_video_frames,
+                    movement_distance=args.movement_distance,
+                    camera_rotation=args.camera_rotation,
+                    center_depth=1.0,
+                    device=device.type,
+                )
         except (ValueError, NotImplementedError) as e:
             log.critical(f"Failed to generate trajectory: {e}")
             continue
 
         log.info(f"Generating 0 - {sample_n_frames} frames")
-        rendered_warp_images, rendered_warp_masks = cache.render_cache(
-            generated_w2cs[:, 0:sample_n_frames],
-            generated_intrinsics[:, 0:sample_n_frames],
-        )
+
+        with timer("render_cache"):    
+            rendered_warp_images, rendered_warp_masks = cache.render_cache(
+                generated_w2cs[:, 0:sample_n_frames],
+                generated_intrinsics[:, 0:sample_n_frames],
+            )
 
         all_rendered_warps = []
         if args.save_buffer:
@@ -605,7 +619,7 @@ def run_full_demo(pipeline,
                   movement_distance: float = 0.3,
                   camera_rotation: str = "center_facing",
                   guidance: float = 1.0,
-                  num_steps = 35,
+                  num_steps = 10,
                   num_frames = 121,
                   height = 704,
                   width = 1280) -> str:
@@ -613,7 +627,7 @@ def run_full_demo(pipeline,
     Run the video-to-world demo on a single uploaded image via Gradio.
     Returns the path to the saved video file.
     """
-
+    pipeline.num_steps = num_steps
     output_dir = os.path.dirname(output_path) 
     output_filename, _ = os.path.splitext(os.path.basename(output_path))
 
@@ -645,7 +659,6 @@ def run_full_demo(pipeline,
         foreground_masking=True,
         # Diffusion & sampling parameters
         guidance=guidance,
-        num_steps=num_steps,
         num_video_frames=num_frames,
         height=height,
         width=width,
