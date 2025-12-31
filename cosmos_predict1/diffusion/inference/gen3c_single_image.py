@@ -378,7 +378,7 @@ def process_dynamic(args, pipeline, device):
         prompts = read_prompts_from_file(args.batch_input_path)
     else:
         visual_input_path = args.vipe_path if args.vipe_path is not None else args.input_image_path
-        prompts = [{"prompt": args.prompt, "visual_input": args.visual_input_path}]
+        prompts = [{"prompt": args.prompt, "visual_input": visual_input_path}]
 
     os.makedirs(os.path.dirname(args.video_save_folder), exist_ok=True)
 
