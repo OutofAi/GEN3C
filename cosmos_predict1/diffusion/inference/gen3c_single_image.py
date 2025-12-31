@@ -29,8 +29,11 @@ from cosmos_predict1.diffusion.inference.inference_utils import (
 from cosmos_predict1.diffusion.inference.gen3c_pipeline import Gen3cPipeline
 from cosmos_predict1.utils import log, misc
 from cosmos_predict1.utils.io import read_prompts_from_file, save_video
+from cosmos_predict1.diffusion.inference.cache_3d import Cache4D
 from cosmos_predict1.diffusion.inference.cache_3d import Cache3D_Buffer
 from cosmos_predict1.diffusion.inference.camera_utils import generate_camera_trajectory
+from cosmos_predict1.diffusion.inference.vipe_utils import load_vipe_data
+from cosmos_predict1.diffusion.inference.data_loader_utils import load_data_auto_detect
 import torch.nn as nn
 import torch.nn.functional as F
 from contextlib import contextmanager
@@ -361,6 +364,214 @@ def load_models(checkpoint_dir, guidance, num_gpus = 1, num_steps = 10, height =
 
     return pipeline, moge_model, device
 
+def process_dynamic(args, pipeline, device):
+
+    misc.set_random_seed(args.seed)
+    inference_type = "video2world"
+    validate_args(args)
+
+    sample_n_frames = pipeline.model.chunk_size
+
+    # Handle multiple prompts if prompt file is provided
+    if args.batch_input_path:
+        log.info(f"Reading batch inputs from path: {args.batch_input_path}")
+        prompts = read_prompts_from_file(args.batch_input_path)
+    else:
+        # Single prompt case
+        prompts = [{"prompt": args.prompt, "visual_input": args.input_image_path}]
+
+    os.makedirs(os.path.dirname(args.video_save_folder), exist_ok=True)
+
+    for i, input_dict in enumerate(prompts):
+        current_prompt = input_dict.get("prompt", None)
+        if current_prompt is None and args.disable_prompt_upsampler:
+            log.critical("Prompt is missing, skipping world generation.")
+            continue
+        current_video_path = input_dict.get("visual_input", None)
+        if current_video_path is None:
+            log.critical("Visual input is missing, skipping world generation.")
+            continue
+
+        # Load data using the new auto-detect loader (supports both old pt and new format)
+        try:
+            if args.vipe_path is not None:
+                (
+                    image_bchw_float,
+                    depth_b1hw,
+                    mask_b1hw,
+                    initial_w2c_b44,
+                    intrinsics_b33,
+                ) = load_vipe_data(
+                    vipe_root_or_mp4=args.vipe_path,
+                    starting_frame_idx=args.vipe_starting_frame_idx,
+                    resize_hw=(720, 1280),
+                    crop_hw=(704, 1280),
+                    num_frames=args.num_video_frames,
+                )
+            else:
+                (
+                    image_bchw_float,
+                    depth_b1hw,
+                    mask_b1hw,
+                    initial_w2c_b44,
+                    intrinsics_b33,
+                ) = load_data_auto_detect(current_video_path)
+        except Exception as e:
+            log.critical(f"Failed to load visual input from {current_video_path}: {e}")
+            continue
+
+        image_bchw_float = image_bchw_float.to(device)
+        depth_b1hw = depth_b1hw.to(device)
+        mask_b1hw = mask_b1hw.to(device)
+        initial_w2c_b44 = initial_w2c_b44.to(device)
+        intrinsics_b33 = intrinsics_b33.to(device)
+
+        cache = Cache4D(
+            input_image=image_bchw_float.clone(), # [B, C, H, W]
+            input_depth=depth_b1hw,       # [B, 1, H, W]
+            input_mask=mask_b1hw,         # [B, 1, H, W]
+            input_w2c=initial_w2c_b44,  # [B, 4, 4]
+            input_intrinsics=intrinsics_b33,# [B, 3, 3]
+            filter_points_threshold=args.filter_points_threshold,
+            input_format=["F", "C", "H", "W"],
+            foreground_masking=args.foreground_masking,
+        )
+
+        initial_cam_w2c_for_traj = initial_w2c_b44
+        initial_cam_intrinsics_for_traj = intrinsics_b33
+
+        # Generate camera trajectory using the new utility function
+        try:
+            generated_w2cs, generated_intrinsics = generate_camera_trajectory(
+                trajectory_type=args.trajectory,
+                initial_w2c=initial_cam_w2c_for_traj,
+                initial_intrinsics=initial_cam_intrinsics_for_traj,
+                num_frames=args.num_video_frames,
+                movement_distance=args.movement_distance,
+                camera_rotation=args.camera_rotation,
+                center_depth=1.0,
+                device=device.type,
+            )
+        except (ValueError, NotImplementedError) as e:
+            log.critical(f"Failed to generate trajectory: {e}")
+            continue
+
+        log.info(f"Generating 0 - {sample_n_frames} frames")
+
+        rendered_warp_images, rendered_warp_masks = cache.render_cache(
+            generated_w2cs[:, 0:sample_n_frames],
+            generated_intrinsics[:, 0:sample_n_frames],
+            start_frame_idx=0,
+        )
+
+        all_rendered_warps = []
+        if args.save_buffer:
+            all_rendered_warps.append(rendered_warp_images.clone().cpu())
+        # Generate video
+        generated_output = pipeline.generate(
+            prompt=current_prompt,
+            image_path=image_bchw_float[0].unsqueeze(0).unsqueeze(2),
+            negative_prompt=args.negative_prompt,
+            rendered_warp_images=rendered_warp_images,
+            rendered_warp_masks=rendered_warp_masks,
+        )
+        if generated_output is None:
+            log.critical("Guardrail blocked video2world generation.")
+            continue
+        video, prompt = generated_output
+
+        num_ar_iterations = (generated_w2cs.shape[1] - 1) // (sample_n_frames - 1)
+        for num_iter in range(1, num_ar_iterations):
+            start_frame_idx = num_iter * (sample_n_frames - 1) # Overlap by 1 frame
+            end_frame_idx = start_frame_idx + sample_n_frames
+
+            log.info(f"Generating {start_frame_idx} - {end_frame_idx} frames")
+
+            last_frame_hwc_0_255 = torch.tensor(video[-1], device=device)
+            pred_image_for_depth_chw_0_1 = last_frame_hwc_0_255.permute(2, 0, 1) / 255.0 # (C,H,W), range [0,1]
+
+            current_segment_w2cs = generated_w2cs[:, start_frame_idx:end_frame_idx]
+            current_segment_intrinsics = generated_intrinsics[:, start_frame_idx:end_frame_idx]
+            rendered_warp_images, rendered_warp_masks = cache.render_cache(
+                current_segment_w2cs,
+                current_segment_intrinsics,
+                start_frame_idx=start_frame_idx,
+            )
+
+            if args.save_buffer:
+                all_rendered_warps.append(rendered_warp_images[:, 1:].clone().cpu())
+
+
+            pred_image_for_depth_bcthw_minus1_1 = pred_image_for_depth_chw_0_1.unsqueeze(0).unsqueeze(2) * 2 - 1 # (B,C,T,H,W), range [-1,1]
+            generated_output = pipeline.generate(
+                prompt=current_prompt,
+                image_path=pred_image_for_depth_bcthw_minus1_1,
+                negative_prompt=args.negative_prompt,
+                rendered_warp_images=rendered_warp_images,
+                rendered_warp_masks=rendered_warp_masks,
+            )
+            video_new, prompt = generated_output
+            video = np.concatenate([video, video_new[1:]], axis=0)
+
+        # Final video processing
+        final_video_to_save = video
+        final_width = args.width
+
+        if args.save_buffer and all_rendered_warps:
+            squeezed_warps = [t.squeeze(0) for t in all_rendered_warps] # Each is (T_chunk, n_i, C, H, W)
+
+            if squeezed_warps:
+                n_max = max(t.shape[1] for t in squeezed_warps)
+
+                padded_t_list = []
+                for sq_t in squeezed_warps:
+                    # sq_t shape: (T_chunk, n_i, C, H, W)
+                    current_n_i = sq_t.shape[1]
+                    padding_needed_dim1 = n_max - current_n_i
+
+                    pad_spec = (0,0, # W
+                                0,0, # H
+                                0,0, # C
+                                0,padding_needed_dim1, # n_i
+                                0,0) # T_chunk
+                    padded_t = F.pad(sq_t, pad_spec, mode='constant', value=-1.0)
+                    padded_t_list.append(padded_t)
+
+                full_rendered_warp_tensor = torch.cat(padded_t_list, dim=0)
+
+                T_total, _, C_dim, H_dim, W_dim = full_rendered_warp_tensor.shape
+                buffer_video_TCHnW = full_rendered_warp_tensor.permute(0, 2, 3, 1, 4)
+                buffer_video_TCHWstacked = buffer_video_TCHnW.contiguous().view(T_total, C_dim, H_dim, n_max * W_dim)
+                buffer_video_TCHWstacked = (buffer_video_TCHWstacked * 0.5 + 0.5) * 255.0
+                buffer_numpy_TCHWstacked = buffer_video_TCHWstacked.cpu().numpy().astype(np.uint8)
+                buffer_numpy_THWC = np.transpose(buffer_numpy_TCHWstacked, (0, 2, 3, 1))
+
+                final_video_to_save = np.concatenate([buffer_numpy_THWC, final_video_to_save], axis=2)
+                final_width = args.width * (1 + n_max)
+                log.info(f"Concatenating video with {n_max} warp buffers. Final video width will be {final_width}")
+            else:
+                log.info("No warp buffers to save.")
+
+
+        if args.batch_input_path:
+            video_save_path = os.path.join(args.video_save_folder, f"{i}.mp4")
+        else:
+            video_save_path = os.path.join(args.video_save_folder, f"{args.video_save_name}.mp4")
+
+        os.makedirs(os.path.dirname(video_save_path), exist_ok=True)
+
+        # Save video
+        save_video(
+            video=final_video_to_save,
+            fps=args.fps,
+            H=args.height,
+            W=final_width,
+            video_save_quality=5,
+            video_save_path=video_save_path,
+        )
+        log.info(f"Saved video to {video_save_path}")
+
+
 
 def process(args, pipeline, moge_model, device):
     """Run video-to-world generation demo.
@@ -411,7 +622,7 @@ def process(args, pipeline, moge_model, device):
         log.info(f"Reading batch inputs from path: {args.batch_input_path}")
         prompts = read_prompts_from_file(args.batch_input_path)
     else:
-        # Single prompt case
+        visual_input_path = args.vipe_path if args.vipe_path is not None else args.input_image_path
         prompts = [{"prompt": args.prompt, "visual_input": args.input_image_path}]
 
     os.makedirs(os.path.dirname(args.video_save_folder), exist_ok=True)
@@ -608,6 +819,77 @@ def process(args, pipeline, moge_model, device):
         import torch.distributed as dist
 
         dist.destroy_process_group()
+
+@torch.no_grad()
+def run_full_dynamic_demo(pipeline,  
+                  device,
+                  vipe_path: str,
+                  output_path: str,
+                  trajectory: str = "left",
+                  movement_distance: float = 0.3,
+                  camera_rotation: str = "center_facing",
+                  guidance: float = 1.0,
+                  num_steps = 10,
+                  num_frames = 121,
+                  height = 704,
+                  width = 1280) -> str:
+    """
+    Run the video-to-world demo on a single uploaded image via Gradio.
+    Returns the path to the saved video file.
+    """
+    pipeline.num_steps = num_steps
+    output_dir = os.path.dirname(output_path) 
+    output_filename, _ = os.path.splitext(os.path.basename(output_path))
+
+    # build args namespace
+    args = argparse.Namespace(
+        tokenizer_dir="Cosmos-Tokenize1-CV8x8x8-720p",
+        prompt_upsampler_dir="Pixtral-12B",
+        vipe_path=vipe_path,
+        vipe_starting_frame_idx = 0,
+        video_save_folder=output_dir,
+        video_save_name=output_filename,
+        prompt="",
+        negative_prompt=(
+            "The video captures a series of frames showing ugly scenes, static with no motion, "
+            "motion blur, over-saturation, shaky footage, low resolution, grainy texture, "
+            "pixelated images, poorly lit areas, underexposed and overexposed scenes, "
+            "poor color balance, washed out colors, choppy sequences, jerky movements, "
+            "low frame rate, artifacting, color banding, unnatural transitions, outdated "
+            "special effects, fake elements, unconvincing visuals, poorly edited content, "
+            "jump cuts, visual noise, and flickering. Overall, the video is of poor quality."
+        ),
+        batch_input_path=None,
+        # Camera / movement / noise flags
+        trajectory=trajectory,
+        camera_rotation=camera_rotation,
+        movement_distance=movement_distance,
+        noise_aug_strength=0.0,
+        save_buffer=False,
+        filter_points_threshold=0.05,
+        foreground_masking=True,
+        # Diffusion & sampling parameters
+        guidance=guidance,
+        num_video_frames=num_frames,
+        height=height,
+        width=width,
+        fps=24,
+        seed=1,
+        num_gpus=1,
+        disable_prompt_upsampler=True,
+        disable_guardrail=True,
+        offload_diffusion_transformer=False,
+        offload_tokenizer=False,
+        offload_text_encoder_model=False,
+        offload_prompt_upsampler=False,
+        offload_guardrail_models=False,
+    )
+
+
+    process_dynamic(args, pipeline, device)
+
+    # return the saved path
+    return os.path.join(output_dir, output_filename + '.mp4')
 
 @torch.no_grad()
 def run_full_demo(pipeline, 
