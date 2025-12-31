@@ -26,6 +26,7 @@ from cosmos_predict1.utils.io import read_prompts_from_file, save_video
 from cosmos_predict1.diffusion.inference.cache_3d import Cache4D
 from cosmos_predict1.diffusion.inference.camera_utils import generate_camera_trajectory
 from cosmos_predict1.diffusion.inference.data_loader_utils import load_data_auto_detect
+from cosmos_predict1.diffusion.inference.vipe_utils import load_vipe_data
 import torch.nn.functional as F
 torch.enable_grad(False)
 
@@ -79,6 +80,18 @@ def parse_arguments() -> argparse.Namespace:
         "--save_buffer",
         action="store_true",
         help="If set, save the warped images (buffer) side by side with the output video.",
+    )
+    parser.add_argument(
+        "--vipe_path",
+        type=str,
+        default=None,
+        help="Optional: path to VIPE clip root or the mp4 file under rgb/. If set, load VIPE-formatted data directly.",
+    )
+    parser.add_argument(
+        "--vipe_starting_frame_idx",
+        type=int,
+        default=0,
+        help="Starting frame index within the VIPE rgb mp4 to use as the reference frame.",
     )
     parser.add_argument(
         "--filter_points_threshold",
@@ -149,6 +162,7 @@ def demo(args):
         offload_prompt_upsampler=args.offload_prompt_upsampler,
         offload_guardrail_models=args.offload_guardrail_models,
         disable_guardrail=args.disable_guardrail,
+        disable_prompt_encoder=args.disable_prompt_encoder,
         guidance=args.guidance,
         num_steps=args.num_steps,
         height=args.height,
@@ -168,8 +182,8 @@ def demo(args):
         log.info(f"Reading batch inputs from path: {args.batch_input_path}")
         prompts = read_prompts_from_file(args.batch_input_path)
     else:
-        # Single prompt case
-        prompts = [{"prompt": args.prompt, "visual_input": args.input_image_path}]
+        visual_input_path = args.vipe_path if args.vipe_path is not None else args.input_image_path
+        prompts = [{"prompt": args.prompt, "visual_input": visual_input_path}]
 
     os.makedirs(os.path.dirname(args.video_save_folder), exist_ok=True)
     for i, input_dict in enumerate(prompts):
@@ -182,15 +196,29 @@ def demo(args):
             log.critical("Visual input is missing, skipping world generation.")
             continue
 
-        # Load data using the new auto-detect loader (supports both old pt and new format)
         try:
-            (
-                image_bchw_float,
-                depth_b1hw,
-                mask_b1hw,
-                initial_w2c_b44,
-                intrinsics_b33,
-            ) = load_data_auto_detect(current_video_path)
+            if args.vipe_path is not None:
+                (
+                    image_bchw_float,
+                    depth_b1hw,
+                    mask_b1hw,
+                    initial_w2c_b44,
+                    intrinsics_b33,
+                ) = load_vipe_data(
+                    vipe_root_or_mp4=args.vipe_path,
+                    starting_frame_idx=args.vipe_starting_frame_idx,
+                    resize_hw=(720, 1280),
+                    crop_hw=(704, 1280),
+                    num_frames=args.num_video_frames,
+                )
+            else:
+                (
+                    image_bchw_float,
+                    depth_b1hw,
+                    mask_b1hw,
+                    initial_w2c_b44,
+                    intrinsics_b33,
+                ) = load_data_auto_detect(current_video_path)
         except Exception as e:
             log.critical(f"Failed to load visual input from {current_video_path}: {e}")
             continue
