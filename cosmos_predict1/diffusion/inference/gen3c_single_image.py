@@ -824,6 +824,7 @@ def run_full_dynamic_demo(pipeline,
                   device,
                   vipe_path: str,
                   output_path: str,
+                  prompt: str = "",
                   trajectory: str = "left",
                   movement_distance: float = 0.3,
                   camera_rotation: str = "center_facing",
@@ -848,7 +849,7 @@ def run_full_dynamic_demo(pipeline,
         vipe_starting_frame_idx = 0,
         video_save_folder=output_dir,
         video_save_name=output_filename,
-        prompt="",
+        prompt=prompt,
         negative_prompt=(
             "The video captures a series of frames showing ugly scenes, static with no motion, "
             "motion blur, over-saturation, shaky footage, low resolution, grainy texture, "
