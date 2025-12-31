@@ -377,8 +377,8 @@ def process_dynamic(args, pipeline, device):
         log.info(f"Reading batch inputs from path: {args.batch_input_path}")
         prompts = read_prompts_from_file(args.batch_input_path)
     else:
-        # Single prompt case
-        prompts = [{"prompt": args.prompt, "visual_input": args.input_image_path}]
+        visual_input_path = args.vipe_path if args.vipe_path is not None else args.input_image_path
+        prompts = [{"prompt": args.prompt, "visual_input": args.visual_input_path}]
 
     os.makedirs(os.path.dirname(args.video_save_folder), exist_ok=True)
 
@@ -622,7 +622,6 @@ def process(args, pipeline, moge_model, device):
         log.info(f"Reading batch inputs from path: {args.batch_input_path}")
         prompts = read_prompts_from_file(args.batch_input_path)
     else:
-        visual_input_path = args.vipe_path if args.vipe_path is not None else args.input_image_path
         prompts = [{"prompt": args.prompt, "visual_input": args.input_image_path}]
 
     os.makedirs(os.path.dirname(args.video_save_folder), exist_ok=True)
