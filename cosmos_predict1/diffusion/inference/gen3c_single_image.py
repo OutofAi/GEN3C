@@ -904,7 +904,8 @@ def run_full_demo(pipeline,
                   num_steps = 10,
                   num_frames = 121,
                   height = 704,
-                  width = 1280) -> str:
+                  width = 1280,
+                  prompt = "") -> str:
     """
     Run the video-to-world demo on a single uploaded image via Gradio.
     Returns the path to the saved video file.
@@ -920,7 +921,7 @@ def run_full_demo(pipeline,
         input_image_path=input_path,
         video_save_folder=output_dir,
         video_save_name=output_filename,
-        prompt="",
+        prompt=prompt,
         negative_prompt=(
             "The video captures a series of frames showing ugly scenes, static with no motion, "
             "motion blur, over-saturation, shaky footage, low resolution, grainy texture, "
